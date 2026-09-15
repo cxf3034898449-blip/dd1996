@@ -123,8 +123,8 @@ export function PortfolioShell({ children }: { children: ReactNode }) {
         <button className="sound-toggle" inert={menu || showreel} aria-label={enabled ? 'Turn sound off' : 'Turn sound on'} aria-pressed={enabled} onClick={() => changeSound(!enabled)}>{enabled ? <Volume2 size={18} /> : <VolumeX size={18} />}</button>
       </>}
       {(!entered || leaving) && <section className={`entry-gate ${leaving ? 'leaving' : ''}`} aria-label="Welcome to Pacôme Pertant" onAnimationEnd={event => { if (event.target === event.currentTarget && leaving) setLeaving(false); }}>
-        <div className="entry-content"><LottieArtwork name="loader" className="entry-art" /><p>motion &amp; sound designer based in paris</p><button className="entry-button" onClick={() => enter(true)}>enter with sound<span /></button></div>
-        <button className="without-sound" onClick={() => enter(false)}>enter without sound</button>
+        <div className="entry-content"><LottieArtwork name="loader" className="entry-art" /><p>motion &amp; sound designer based in paris</p><a className="entry-button" href={`${assetRoot}/mobile.html`} onClick={event => { event.preventDefault(); enter(true); }}>enter with sound<span /></a></div>
+        <a className="without-sound" href={`${assetRoot}/mobile.html`} onClick={event => { event.preventDefault(); enter(false); }}>enter without sound</a>
       </section>}
       {showreel && <div ref={showreelDialog} className="showreel-modal" role="dialog" aria-modal="true" aria-label="Showreel 2025"><MediaPlayer playbackId={showreelId} poster={`${assetRoot}/reel-thumbnail.png`} title="Showreel 2025" onPlayingChange={setMediaPlaying} autoPlay onClose={() => { setShowreel(false); setMediaPlaying(false); }} /></div>}
     </div>
