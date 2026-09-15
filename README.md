@@ -1,7 +1,9 @@
 # Design portfolio
 
-Current local portfolio with nine numbered design covers.
+Source for the current portfolio, including nine numbered design covers.
 
-Node.js 24: `npm ci`, then `npm run build`. Static files are exported to `out/`.
+## GitHub Pages
 
-GitHub Pages: Settings → Pages → Source → GitHub Actions. The included workflow builds and deploys the main branch.
+Pages serves the committed `docs/` directory on `main`.
+
+To update: use Node.js 24, run `npm ci` and `npm run build`, copy the generated `out/` contents to `docs/`, preserve `docs/.nojekyll`, then commit and push.
