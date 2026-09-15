@@ -2,11 +2,12 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { ArrowUpRight, Volume2, VolumeX, X } from 'lucide-react';
 import { assetRoot, email, projects, showreelId, socialLinks, type Project } from './data';
 import { LottieArtwork } from './LottieArtwork';
-import { SpiralGallery } from './SpiralGallery';
+const SpiralGallery = dynamic(() => import('./SpiralGallery').then(module => module.SpiralGallery), { ssr: false, loading: () => <div className="gallery-loading" role="status">Loading gallery…</div> });
 import { MediaPlayer } from './MediaPlayer';
 
 interface Context { entered: boolean; menu: boolean; mode: 'spiral' | 'list'; setMode: (mode: 'spiral' | 'list') => void; sound: (name: string) => void; setMediaPlaying: (playing: boolean) => void; }
@@ -135,7 +136,7 @@ export function PortfolioHome() {
   const [hovered, setHovered] = useState<Project | null>(null);
   return <main className={`portfolio-home mode-${mode}`}>
     <h1 className="sr-only">Pacôme Pertant — Motion &amp; Sound Designer</h1>
-    <SpiralGallery active={entered && !menu && mode === 'spiral'} onHover={setHovered} onSound={sound} />
+    {entered && <SpiralGallery active={!menu && mode === 'spiral'} onHover={setHovered} onSound={sound} />}
     {mode === 'list' && <ProjectList hidden={menu} onSound={sound} />}
     {mode === 'spiral' && hovered && !menu && <div className="hover-caption"><img src={hovered.thumbnail} alt="" /><span>{hovered.title}</span><ArrowUpRight size={16} /></div>}
   </main>;

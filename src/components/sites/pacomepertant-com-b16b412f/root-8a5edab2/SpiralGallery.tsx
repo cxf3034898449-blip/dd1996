@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import * as THREE from 'three';
 import { projects, type Project } from './data';
 import { vertexShader } from './vertexShader';
@@ -14,6 +15,7 @@ export function SpiralGallery({ active, onHover, onSound }: Props) {
   const activeRef = useRef(active);
   const callbacks = useRef({ onHover, onSound });
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(0);
   const router = useRouter();
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { callbacks.current = { onHover, onSound }; }, [onHover, onSound]);
@@ -28,11 +30,42 @@ export function SpiralGallery({ active, onHover, onSound }: Props) {
     const camera = new THREE.PerspectiveCamera(window.innerWidth < 900 ? 45 : 35, window.innerWidth / window.innerHeight, .1, 100);
     camera.position.z = 8;
     renderer.setClearColor(0x0a0a0a, 0);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, window.matchMedia('(pointer: coarse)').matches ? 1.25 : 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.toneMapping = THREE.NoToneMapping;
-    const loader = new THREE.TextureLoader();
-    const textures = projects.map(project => loader.load(project.thumbnail));
+    let disposed = false;
+    const imageReady = projects.map(() => false);
+    const textures = projects.map(() => new THREE.Texture());
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const pendingImages = new Set<HTMLImageElement>();
+    const loadImage = (index: number, attempt = 0) => {
+      if (disposed) return;
+      const img = new Image();
+      pendingImages.add(img);
+      let settled = false;
+      const finish = (success: boolean) => {
+        if (settled || disposed) return;
+        settled = true;
+        clearTimeout(timeout);
+        timers.delete(timeout);
+        pendingImages.delete(img);
+        img.onload = null; img.onerror = null;
+        if (success) {
+          textures[index].image = img;
+          textures[index].needsUpdate = true;
+          imageReady[index] = true;
+          setLoaded(count => count + 1);
+        } else if (attempt < 1) {
+          loadImage(index, attempt + 1);
+        } else setFailed(true);
+      };
+      const timeout = setTimeout(() => finish(false), 15000);
+      timers.add(timeout);
+      img.onload = () => finish(true);
+      img.onerror = () => finish(false);
+      img.src = projects[index].thumbnail + (attempt ? '?retry=1' : '');
+    };
+    projects.forEach((_, index) => loadImage(index));
     const geometry = new THREE.PlaneGeometry(1, 1, 8, 8);
     const cards = [...projects, ...projects].map((project, i) => {
       const texture = textures[i % projects.length];
@@ -54,7 +87,7 @@ export function SpiralGallery({ active, onHover, onSound }: Props) {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let targetSpeed = reducedMotion.matches ? 0 : .002, speed = 0, direction = 1, offset = 0;
     let hovered = -1, previousTime = performance.now(), frame = 0;
-    let pressed = false, dragDistance = 0, lastX = 0, disposed = false;
+    let pressed = false, dragDistance = 0, lastX = 0;
     const clearHover = () => { if (hovered !== -1) callbacks.current.onHover(null); hovered = -1; canvas.style.cursor = 'grab'; };
     const updatePointer = (event: PointerEvent) => {
       pointer.set(event.clientX / window.innerWidth * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
@@ -97,7 +130,7 @@ export function SpiralGallery({ active, onHover, onSound }: Props) {
     const resize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.fov = window.innerWidth < 900 ? 45 : 35; camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight); renderer.setPixelRatio(Math.min(window.devicePixelRatio, window.matchMedia('(pointer: coarse)').matches ? 1.25 : 2));
     };
     const render = (time: number) => {
       if (disposed) return;
@@ -110,6 +143,7 @@ export function SpiralGallery({ active, onHover, onSound }: Props) {
         targetSpeed *= Math.pow(.9, factor);
       }
       cards.forEach((card, i) => {
+        card.mesh.visible = imageReady[i % projects.length];
         card.hover = THREE.MathUtils.lerp(card.hover, i === hovered ? 1 : 0, 1 - Math.pow(.93, delta * .2));
         card.hidden = THREE.MathUtils.lerp(card.hidden, activeRef.current ? 0 : 1, 1 - Math.pow(.95, delta * .15));
         const position = ((i - offset) % cards.length + cards.length) % cards.length - Math.floor(cards.length / 2);
@@ -147,6 +181,8 @@ export function SpiralGallery({ active, onHover, onSound }: Props) {
     frame = requestAnimationFrame(render);
     return () => {
       disposed = true; cancelAnimationFrame(frame);
+      timers.forEach(clearTimeout);
+      pendingImages.forEach(img => { img.onload = null; img.onerror = null; });
       canvas.removeEventListener('pointercancel', cancelDrag);
       canvas.removeEventListener('lostpointercapture', cancelDrag);
       canvas.removeEventListener('webglcontextlost', lostContext);
@@ -158,6 +194,6 @@ export function SpiralGallery({ active, onHover, onSound }: Props) {
   }, [router, failed]);
 
   if (failed && !active) return null;
-  if (failed) return <div className="gallery-fallback">{projects.map(project => <a href={`/projects/${project.slug}`} key={project.slug}><img src={project.thumbnail} alt={project.title} /><span>{project.title}</span></a>)}</div>;
-  return <canvas ref={canvasRef} className={`spiral-canvas ${active ? 'is-active' : ''}`} aria-label="Spiral project gallery. Scroll or drag to explore. Use list view for keyboard navigation." />;
+  if (failed) return <div className="gallery-fallback">{projects.map(project => <Link href={`/projects/${project.slug}`} key={project.slug}><img src={project.thumbnail} alt={project.title} /><span>{project.title}</span></Link>)}</div>;
+  return <>{active && loaded < projects.length && <div className="gallery-loading" role="status"><span>Loading works {loaded}/{projects.length}</span><button onClick={() => setFailed(true)}>View images</button></div>}<canvas ref={canvasRef} className={`spiral-canvas ${active ? 'is-active' : ''}`} aria-label="Spiral project gallery. Scroll or drag to explore. Use list view for keyboard navigation." /></>;
 }

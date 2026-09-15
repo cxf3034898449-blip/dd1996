@@ -35,3 +35,6 @@ button,a{color:inherit;font:inherit;letter-spacing:inherit;-webkit-tap-highlight
 
 @media (prefers-reduced-motion:reduce){.project-list>a,.list-preview img{animation:none}.list-preview{transition:none}}
 @media (hover:none){.list-preview{display:none}}
+
+.gallery-loading{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:14;display:flex;flex-direction:column;align-items:center;gap:14px;padding:16px 22px;border-radius:14px;background:#0a0a0acc;font-size:14px;white-space:nowrap}.gallery-loading button{text-decoration:underline;text-underline-offset:4px}
+@media(hover:none){.face-logo:hover .logo-tag{opacity:0;transform:rotate(-5deg) scale(.7)}}
